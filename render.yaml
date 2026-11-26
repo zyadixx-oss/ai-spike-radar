@@ -1,0 +1,35 @@
+# Render Blueprint — backend (web) + worker + Postgres. Frontend: deploy /frontend to Vercel (or a Render static site).
+databases:
+  - name: spike-radar-db
+    plan: basic-256mb
+    databaseName: spike_radar
+    user: radar
+services:
+  - type: web
+    name: spike-radar-api
+    runtime: docker
+    rootDir: backend
+    plan: standard
+    healthCheckPath: /api/safety
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: spike-radar-db, property: connectionString }
+      - { key: RUN_COLLECTOR, value: "true" }
+      - { key: RUN_RADAR, value: "true" }
+      - { key: RUN_WORKER, value: "false" }
+      - { key: DERIV_APP_ID, value: "1089" }
+      - { key: MODELS_DIR, value: /data/models }
+    disk: { name: models, mountPath: /data, sizeGB: 5 }
+  - type: worker
+    name: spike-radar-worker
+    runtime: docker
+    rootDir: backend
+    plan: standard
+    dockerCommand: python -m app.cli serve --port 8001
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: { name: spike-radar-db, property: connectionString }
+      - { key: RUN_COLLECTOR, value: "false" }
+      - { key: RUN_RADAR, value: "false" }
+      - { key: RUN_WORKER, value: "true" }
+      - { key: MODELS_DIR, value: /data/models }

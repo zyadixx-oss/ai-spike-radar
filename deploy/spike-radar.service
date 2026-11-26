@@ -1,0 +1,20 @@
+# /etc/systemd/system/spike-radar.service — VPS install without Docker
+# sudo useradd -r -m radar && sudo -u radar git clone <repo> /opt/spike-radar
+# cd /opt/spike-radar/backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# cd ../frontend && npm ci && npm run build      (the backend then serves frontend/dist)
+[Unit]
+Description=AI Spike Radar (research only — no trading)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=radar
+WorkingDirectory=/opt/spike-radar/backend
+EnvironmentFile=/opt/spike-radar/.env
+ExecStart=/opt/spike-radar/backend/.venv/bin/python -m app.cli serve --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+# resumable by design: interrupted jobs are re-queued, backfill resumes, gaps are refilled
+
+[Install]
+WantedBy=multi-user.target

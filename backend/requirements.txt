@@ -1,0 +1,14 @@
+fastapi==0.165.0
+uvicorn[standard]==0.54.0
+websockets==17.4
+SQLAlchemy==2.1.9
+psycopg[binary]==3.2.12
+numpy==2.5.3
+pandas==3.0.5
+scipy==1.18.1
+scikit-learn==1.9.1
+lightgbm==4.7.0
+xgboost==3.4.1
+hmmlearn==0.3.3
+joblib>=1.4
+httpx>=0.28

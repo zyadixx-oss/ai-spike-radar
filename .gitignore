@@ -1,0 +1,14 @@
+# data & models (never commit collected data or trained artifacts)
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+.env
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+# node
+frontend/node_modules/
+frontend/dist/
+tsconfig.tsbuildinfo

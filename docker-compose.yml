@@ -1,0 +1,55 @@
+# AI Spike Radar — research only. LIVE_TRADING is hard-coded false in backend/app/safety.py.
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    environment:
+      POSTGRES_USER: radar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: spike_radar
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radar -d spike_radar"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # API + Deriv collector + live radar (one process: the radar reads live ticks from memory)
+  backend:
+    build: { context: ./backend, args: { INSTALL_TORCH: "${INSTALL_TORCH:-false}" } }
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://radar:${POSTGRES_PASSWORD:-change-me}@db:5432/spike_radar
+      USE_TIMESCALE: "true"
+      MODELS_DIR: /data/models
+      RUN_COLLECTOR: "true"
+      RUN_RADAR: "true"
+      RUN_WORKER: "false"
+    volumes: [models:/data]
+    depends_on: { db: { condition: service_healthy } }
+    ports: ["8000:8000"]
+    restart: unless-stopped
+
+  # Durable job worker: spike scans, research, training, arena, evaluation (resumes after restarts)
+  worker:
+    build: { context: ./backend, args: { INSTALL_TORCH: "${INSTALL_TORCH:-false}" } }
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://radar:${POSTGRES_PASSWORD:-change-me}@db:5432/spike_radar
+      MODELS_DIR: /data/models
+      RUN_COLLECTOR: "false"
+      RUN_RADAR: "false"
+      RUN_WORKER: "true"
+    volumes: [models:/data]
+    depends_on: { db: { condition: service_healthy } }
+    command: ["python", "-m", "app.cli", "serve", "--port", "8001"]
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    ports: ["8080:80"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  models:

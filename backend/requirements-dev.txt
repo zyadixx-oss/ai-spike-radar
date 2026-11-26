@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest>=8
+pytest-asyncio>=0.24
+# optional deep sequence models (LSTM / Temporal CNN / Transformer), CPU build:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
