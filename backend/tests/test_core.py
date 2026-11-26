@@ -84,3 +84,20 @@ def test_trial_stats_negative_control():
 def test_threshold_sensitivity_stable(k):
     ep, q, true_sp = simulate(n=20000, mean_gap=200, seed=8)
     assert abs(len(detect(ep, q, 1, k=k)["events"]) - len(true_sp)) <= 3
+
+
+def test_spike_scan_rescans_when_older_history_arrives(engine):
+    """Regression: the first scan ran on a few live ticks; history backfilled afterwards must be scanned."""
+    from app import db
+    from app.research.spikes import scan_and_store
+    ep, q, true_sp = simulate(n=30000, mean_gap=300, seed=41)
+    rows = [{"symbol": "X", "epoch": int(e), "quote": float(v)} for e, v in zip(ep, q)]
+    db.insert_ignore(engine, db.ticks, rows[-400:])          # live ticks only (before backfill)
+    scan_and_store("X", 1, engine)
+    db.insert_ignore(engine, db.ticks, rows[:-400])          # backfill completes later
+    scan_and_store("X", 1, engine)
+    n = db.exec_sql("SELECT COUNT(*) AS n FROM spikes WHERE symbol='X'", engine=engine)[0]["n"]
+    assert abs(n - len(true_sp)) <= 3, (n, len(true_sp))
+    # with a reliable definition and no older history, the next scan is incremental
+    db.insert_ignore(engine, db.ticks, [])
+    assert scan_and_store("X", 1, engine).get("mode") == "incremental"

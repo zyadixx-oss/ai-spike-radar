@@ -47,7 +47,7 @@ HORIZON_MAP = {k: (kind, n) for k, kind, n in HORIZONS}
 @dataclass
 class Settings:
     database_url: str = field(default_factory=lambda: _env("DATABASE_URL", "sqlite:///./data/spike_radar.db"))
-    deriv_ws_url: str = field(default_factory=lambda: _env("DERIV_WS_URL", "wss://ws.derivws.com/websockets/v3"))
+    deriv_ws_url: str = field(default_factory=lambda: _env("DERIV_WS_URL", "wss://api.derivws.com/trading/v1/options/ws/public"))
     deriv_app_id: str = field(default_factory=lambda: _env("DERIV_APP_ID", "1089"))
     deriv_ws_proxy: str = field(default_factory=lambda: _env("DERIV_WS_PROXY", "auto"))  # auto | none | URL
     deriv_max_rps: float = field(default_factory=lambda: _float("DERIV_MAX_RPS", 2.0))

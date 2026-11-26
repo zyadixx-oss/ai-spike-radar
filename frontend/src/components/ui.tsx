@@ -22,10 +22,11 @@ export function Card({ title, children, right, className = "" }: { title?: React
 
 export function Stat({ label, value, sub, tone }: { label: ReactNode; value: ReactNode; sub?: ReactNode; tone?: string }) {
   return (
-    <div className="rounded-xl border border-line bg-panel2 p-3">
+    <div className="min-w-0 rounded-xl border border-line bg-panel2 p-3">
       <div className="text-xs text-muted">{label}</div>
-      <div className="mt-1 font-mono text-xl font-semibold" style={tone ? { color: tone } : undefined}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
+      <div className="mt-1 truncate font-mono text-xl font-semibold" style={tone ? { color: tone } : undefined}
+        title={typeof value === "string" ? value : undefined}>{value}</div>
+      {sub && <div className="mt-0.5 truncate text-xs text-muted" title={typeof sub === "string" ? sub : undefined}>{sub}</div>}
     </div>
   );
 }

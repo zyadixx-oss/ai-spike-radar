@@ -105,6 +105,9 @@ def sensitivity(quotes: np.ndarray, seg: np.ndarray, direction: int, sigma: floa
     return out
 
 
+MIN_TICKS_FOR_DEFINITION = 5000  # below this, every scan is a full scan (threshold not yet reliable)
+
+
 def _last_full_scan(eng, symbol: str) -> dict | None:  # noqa: ANN001
     r = db.exec_sql("SELECT payload, created_at FROM research WHERE symbol=:s AND kind='spike_scan' "
                     "ORDER BY id DESC LIMIT 1", {"s": symbol}, eng)
@@ -116,7 +119,17 @@ def scan_and_store(symbol: str, direction: int, engine=None, full_every: float =
     seconds; in between, only new ticks are scanned with the stored definition."""
     eng = engine or db.get_engine()
     last = _last_full_scan(eng, symbol)
-    if last and time.time() - last["_at"] < full_every and last.get("last_epoch"):
+    incremental_ok = bool(last and time.time() - last["_at"] < full_every and last.get("last_epoch"))
+    if incremental_ok:
+        # A full rescan is required when history older than the last full scan has arrived since
+        # (e.g. backfill finished after the first scan) or when that scan saw too few ticks to
+        # estimate the threshold reliably.
+        r = db.exec_sql("SELECT MIN(epoch) AS a FROM ticks WHERE symbol=:s", {"s": symbol}, eng)
+        min_epoch = r[0]["a"] if r else None
+        if (last.get("first_epoch") is None or (min_epoch is not None and min_epoch < last["first_epoch"])
+                or (last.get("n_ticks") or 0) < MIN_TICKS_FOR_DEFINITION):
+            incremental_ok = False
+    if incremental_ok:
         ep, q = load_ticks(symbol, start=int(last["last_epoch"]) - 3600, engine=eng)
         if len(ep) < 3:
             return {"symbol": symbol, "mode": "incremental", "new": 0}
@@ -152,6 +165,7 @@ def scan_and_store(symbol: str, direction: int, engine=None, full_every: float =
     with eng.begin() as conn:
         conn.execute(db.research.insert().values(symbol=symbol, kind="spike_scan", created_at=now, payload=db.jdump(
             db.clean_json({"threshold": res["threshold"], "sigma": res["sigma"], "size_cuts": res["size_cuts"],
-                           "last_epoch": int(ep[-1]), "spikes": len(rows)}))))
+                           "first_epoch": int(ep[0]), "last_epoch": int(ep[-1]), "n_ticks": int(len(ep)),
+                           "spikes": len(rows)}))))
     return {"symbol": symbol, "ticks": int(len(ep)), "spikes": len(rows), "threshold": res["threshold"],
             "sigma": res["sigma"], "k": res["k"], "size_cuts": res["size_cuts"], "sensitivity": sens}
